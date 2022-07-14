@@ -80,7 +80,6 @@ let paused = false;
 //* Press the button to move paddle
 window.addEventListener('keydown', function (e) {
   const code = e.code;
-  console.log(e.code, 'keydown');
   if (code === P1_UP_BUTTON) {
     p1Action = UP_ACTION;
   } else if (code === P1_DOWN_BUTTON) {
@@ -145,11 +144,17 @@ function movePaddles() {
 function shouldBounceBallFromTopWall() {
   return ballY < BALL_R && ballDY < 0;
 }
-
 function shouldBounceBallFromBottomWall() {
   return ballY + BALL_R > CANVAS_HEIGHT && ballDY > 0;
 }
-
+function randomVertical() {
+  let random = Math.round(Math.random());
+  if (random === 0) {
+    ballDY = -ballDY;
+  } else if (random === 1) {
+    ballDY = ballDY;
+  }
+}
 function moveBallByStep() {
   ballX += ballDX;
   ballY += ballDY;
@@ -157,10 +162,12 @@ function moveBallByStep() {
 
 function bounceBallFromWall() {
   ballDY = -ballDY;
+  console.log(ballDY);
 }
 
 function bounceBallFromPaddle() {
   ballDX = -ballDX;
+  randomVertical();
 }
 
 function moveBallToStart() {
