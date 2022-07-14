@@ -147,13 +147,31 @@ function shouldBounceBallFromTopWall() {
 function shouldBounceBallFromBottomWall() {
   return ballY + BALL_R > CANVAS_HEIGHT && ballDY > 0;
 }
-function randomVertical() {
+function randomBallMov() {
+  let randomY = Math.round(Math.random() * (5 - 1)) + 1;
+  let randomX = Math.floor(Math.random() * (10 - 4)) + 4;
   let random = Math.round(Math.random());
   if (random === 0) {
-    ballDY = -ballDY;
-  } else if (random === 1) {
-    ballDY = ballDY;
+    ballDY = randomY;
+    ballDX = randomX;
+  } else {
+    ballDY = -randomY;
+    ballDX = -randomX;
   }
+
+  console.log(randomY, ballDY, ballDX, randomX);
+}
+function randomPaddleBounce() {
+  let randomY = Math.round(Math.random() * (5 - 1)) + 1;
+
+  let random = Math.round(Math.random());
+  if (random === 0) {
+    ballDY = randomY;
+  } else {
+    ballDY = -randomY;
+  }
+
+  console.log(randomY, ballDY);
 }
 function moveBallByStep() {
   ballX += ballDX;
@@ -162,12 +180,11 @@ function moveBallByStep() {
 
 function bounceBallFromWall() {
   ballDY = -ballDY;
-  console.log(ballDY);
 }
 
 function bounceBallFromPaddle() {
   ballDX = -ballDX;
-  randomVertical();
+  randomPaddleBounce();
 }
 
 function moveBallToStart() {
@@ -210,10 +227,14 @@ function moveBall() {
     bounceBallFromPaddle();
   }
   if (ballIsOutsideOnLeft()) {
+    randomBallMov();
     moveBallToStart();
+
     p2Points++;
   } else if (ballIsOutsideOnRight()) {
+    randomBallMov();
     moveBallToStart();
+
     p1Points++;
   }
   moveBallByStep();
