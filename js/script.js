@@ -84,17 +84,17 @@ class Ball {
       this.bounceFromWall();
     }
     if (
-      this.shouldBounceFromLeftPaddle() ||
-      this.shouldBounceFromRightPaddle()
+      this.shouldBounceFromLeftPaddle(p1.paddle) ||
+      this.shouldBounceFromRightPaddle(p2.paddle)
     ) {
       this.bounceFromPaddle();
     }
     if (this.isOutsideOnLeft()) {
-      randomBallMov();
+      this.randomBallMov();
       this.moveToStart();
       p2.points++;
     } else if (this.isOutsideOnRight()) {
-      randomBallMov();
+      this.randomBallMov();
       this.moveToStart();
       p1.points++;
     }
@@ -115,7 +115,7 @@ class Ball {
   }
   bounceFromPaddle() {
     this.dx = -this.dx;
-    randomPaddleBounce();
+    this.randomPaddleBounce();
   }
   moveToStart() {
     this.x = BALL_START_X;
@@ -146,6 +146,29 @@ class Ball {
       isInBetween(this.x + BALL_R, PADDLE_P2_X, PADDLE_P2_X + PADDLE_WIDTH) &&
       this.isOnTheSameHeightAsPaddle(paddle.y)
     );
+  }
+
+  randomBallMov() {
+    let randomY = Math.round(Math.random() * (5 - 1)) + 1;
+    let randomX = Math.floor(Math.random() * (10 - 4)) + 4;
+    let random = Math.round(Math.random());
+    if (random === 0) {
+      this.dy = randomY;
+      this.dx = randomX;
+    } else {
+      this.dy = -randomY;
+      this.dx = -randomX;
+    }
+  }
+  randomPaddleBounce() {
+    let randomY = Math.round(Math.random() * (5 - 1)) + 1;
+
+    let random = Math.round(Math.random());
+    if (random === 0) {
+      this.dy = randomY;
+    } else {
+      this.dy = -randomY;
+    }
   }
 }
 
@@ -271,26 +294,3 @@ class Game {
 
 const game = new Game();
 game.start();
-
-function randomBallMov() {
-  let randomY = Math.round(Math.random() * (5 - 1)) + 1;
-  let randomX = Math.floor(Math.random() * (10 - 4)) + 4;
-  let random = Math.round(Math.random());
-  if (random === 0) {
-    ball.dy = randomY;
-    ball.dx = randomX;
-  } else {
-    ball.dy = -randomY;
-    ball.dx = -randomX;
-  }
-}
-function randomPaddleBounce() {
-  let randomY = Math.round(Math.random() * (5 - 1)) + 1;
-
-  let random = Math.round(Math.random());
-  if (random === 0) {
-    ball.dy = randomY;
-  } else {
-    ball.dy = -randomY;
-  }
-}
