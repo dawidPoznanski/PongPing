@@ -10,7 +10,7 @@ const BOARD_P2_X = 500;
 
 const PADDLE_WIDTH = 20;
 const PADDLE_HEIGHT = 100;
-const PADDLE_STEP = 3;
+const PADDLE_STEP = 5;
 const PADDLE_P1_X = 10;
 const PADDLE_P2_X = 770;
 const PADDLE_START_Y = (CANVAS_HEIGHT - PADDLE_HEIGHT) / 2;
@@ -43,6 +43,7 @@ function coerceIn(value, min, max) {
     return value;
   }
 }
+
 function isInBetween(value, min, max) {
   return value >= min && value <= max;
 }
@@ -50,13 +51,11 @@ function isInBetween(value, min, max) {
 //*Drawing
 // Points
 ctx.font = '30px Arial';
+
 function drawPoints(text, x) {
   ctx.fillText(text, x, BOARD_Y);
 }
-// Pong paddle
-function drawPaddle(x, y) {
-  ctx.fillRect(x, y, PADDLE_WIDTH, PADDLE_HEIGHT);
-}
+
 //Ball
 function drawCircle(x, y, r) {
   ctx.beginPath();
@@ -64,30 +63,24 @@ function drawCircle(x, y, r) {
   ctx.closePath();
   ctx.fill();
 }
-function drawBall(x, y) {
-  drawCircle(x, y, BALL_R);
-}
+
 // Clear canvas
 function clearCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 //*Input
-let p1Action = STOP_ACTION;
-let p2Action = STOP_ACTION;
-let paused = false;
-
 //* Press the button to move paddle
 window.addEventListener('keydown', function (e) {
   const code = e.code;
   if (code === P1_UP_BUTTON) {
-    p1Action = UP_ACTION;
+    p1.action = UP_ACTION;
   } else if (code === P1_DOWN_BUTTON) {
-    p1Action = DOWN_ACTION;
+    p1.action = DOWN_ACTION;
   } else if (code === P2_UP_BUTTON) {
-    p2Action = UP_ACTION;
+    p2.action = UP_ACTION;
   } else if (code === P2_DOWN_BUTTON) {
-    p2Action = DOWN_ACTION;
+    p2.action = DOWN_ACTION;
   }
   //*PAUSE
   if (code === PAUSE_BUTTON) {
@@ -99,145 +92,172 @@ window.addEventListener('keyup', function (e) {
   const code = e.code;
   //Player 1 movement
   if (
-    (code === P1_UP_BUTTON && p1Action === UP_ACTION) ||
-    (code === P1_DOWN_BUTTON && p1Action === DOWN_ACTION)
+    (code === P1_UP_BUTTON && p1.action === UP_ACTION) ||
+    (code === P1_DOWN_BUTTON && p1.action === DOWN_ACTION)
   ) {
-    p1Action = STOP_ACTION;
+    p1.action = STOP_ACTION;
   } else if (
-    (code === P2_UP_BUTTON && p2Action === UP_ACTION) ||
-    (code === P2_DOWN_BUTTON && p2Action === DOWN_ACTION)
+    (code === P2_UP_BUTTON && p2.action === UP_ACTION) ||
+    (code === P2_DOWN_BUTTON && p2.action === DOWN_ACTION)
   ) {
-    p2Action = STOP_ACTION;
+    p2.action = STOP_ACTION;
   }
 });
 
-let ballX = BALL_START_X;
-let ballY = BALL_START_Y;
-let ballDX = BALL_START_DX;
-let ballDY = BALL_START_DY;
-let p1PaddleY = PADDLE_START_Y;
-let p2PaddleY = PADDLE_START_Y;
-let p1Points = 0;
-let p2Points = 0;
+//*Ball movement
+function Ball() {
+  return {
+    x: BALL_START_X,
+    y: BALL_START_Y,
+    dx: BALL_START_DX,
+    dy: BALL_START_DY,
+    moveByStep() {
+      this.x += this.dx;
+      this.y += this.dy;
+    },
+    shouldBounceFromTopWall: function () {
+      return this.y < BALL_R && this.dy < 0;
+    },
+    shouldBounceFromBottomWall: function () {
+      return this.y + BALL_R > CANVAS_HEIGHT && this.y > 0;
+    },
+    bounceFromWall: function () {
+      this.dy = -this.dy;
+    },
+    bounceFromPaddle: function () {
+      this.dx = -this.dx;
+      randomPaddleBounce();
+    },
+    moveToStart: function () {
+      this.x = BALL_START_X;
+      this.y = BALL_START_Y;
+    },
+    isOutsideOnLeft: function () {
+      return this.x + BALL_R < 0;
+    },
+    isOutsideOnRight: function () {
+      return this.x - BALL_R > CANVAS_WIDTH;
+    },
 
-function coercePaddle(paddleY) {
-  const minPaddleY = 0;
-  const maxPaddleY = CANVAS_HEIGHT - PADDLE_HEIGHT;
-  return coerceIn(paddleY, minPaddleY, maxPaddleY);
+    isOnTheSameHeightAsPaddle: function (paddleY) {
+      return isInBetween(this.y, paddleY, paddleY + PADDLE_HEIGHT);
+    },
+
+    shouldBounceFromLeftPaddle: function () {
+      return (
+        this.dx < 0 &&
+        isInBetween(this.x - BALL_R, PADDLE_P1_X, PADDLE_P1_X + PADDLE_WIDTH) &&
+        this.isOnTheSameHeightAsPaddle(p1.paddle.y)
+      );
+    },
+
+    shouldBounceFromRightPaddle: function () {
+      return (
+        this.dx > 0 &&
+        isInBetween(this.x + BALL_R, PADDLE_P2_X, PADDLE_P2_X + PADDLE_WIDTH) &&
+        this.isOnTheSameHeightAsPaddle(p2.paddle.y)
+      );
+    },
+    draw: function () {
+      drawCircle(this.x, this.y, BALL_R);
+    },
+  };
 }
+function Player(paddleX, boardX) {
+  return {
+    points: 0,
+    boardX: boardX,
+    action: STOP_ACTION,
+    paddle: {
+      x: paddleX,
+      y: PADDLE_START_Y,
+      setY: function (newY) {
+        const minPaddleY = 0;
+        const maxPaddleY = CANVAS_HEIGHT - PADDLE_HEIGHT;
+        this.y = coerceIn(newY, minPaddleY, maxPaddleY);
+      },
+      stepDown: function () {
+        this.setY(this.y + PADDLE_STEP);
+      },
+      stepUp: function () {
+        this.setY(this.y - PADDLE_STEP);
+      },
+      draw: function () {
+        ctx.fillRect(this.x, this.y, PADDLE_WIDTH, PADDLE_HEIGHT);
+      },
+    },
+    makeAction: function () {
+      if (this.action === UP_ACTION) {
+        this.paddle.stepUp();
+      } else if (this.action === DOWN_ACTION) {
+        this.paddle.stepDown();
+      }
+    },
+    drawPoints: function () {
+      drawPoints(this.points.toString(), this.boardX);
+    },
+    draw: function () {
+      this.drawPoints();
+      this.paddle.draw();
+    },
+  };
+}
+
+//*STATE
+let paused = false;
+let ball = Ball();
+const p1 = Player(PADDLE_P1_X, BOARD_P1_X);
+const p2 = Player(PADDLE_P2_X, BOARD_P2_X);
+
 //* Function moving paddles on canvas
 function movePaddles() {
   //Player 1 move
-  if (p1Action === UP_ACTION) {
-    p1PaddleY = coercePaddle(p1PaddleY - PADDLE_STEP);
-  } else if (p1Action === DOWN_ACTION) {
-    p1PaddleY = coercePaddle(p1PaddleY + PADDLE_STEP);
-  }
-  // Player 2 move
-  if (p2Action === UP_ACTION && p2PaddleY >= 0) {
-    p2PaddleY = coercePaddle(p2PaddleY - PADDLE_STEP);
-  } else if (p2Action === DOWN_ACTION) {
-    p2PaddleY = coercePaddle(p2PaddleY + PADDLE_STEP);
-  }
+  p1.makeAction();
+  p2.makeAction();
 }
-//*Ball movement
-function shouldBounceBallFromTopWall() {
-  return ballY < BALL_R && ballDY < 0;
-}
-function shouldBounceBallFromBottomWall() {
-  return ballY + BALL_R > CANVAS_HEIGHT && ballDY > 0;
-}
+
 function randomBallMov() {
   let randomY = Math.round(Math.random() * (5 - 1)) + 1;
   let randomX = Math.floor(Math.random() * (10 - 4)) + 4;
   let random = Math.round(Math.random());
   if (random === 0) {
-    ballDY = randomY;
-    ballDX = randomX;
+    ball.dy = randomY;
+    ball.dx = randomX;
   } else {
-    ballDY = -randomY;
-    ballDX = -randomX;
+    ball.dy = -randomY;
+    ball.dx = -randomX;
   }
-
-  console.log(randomY, ballDY, ballDX, randomX);
 }
 function randomPaddleBounce() {
   let randomY = Math.round(Math.random() * (5 - 1)) + 1;
 
   let random = Math.round(Math.random());
   if (random === 0) {
-    ballDY = randomY;
+    ball.dy = randomY;
   } else {
-    ballDY = -randomY;
+    ball.dy = -randomY;
   }
-
-  console.log(randomY, ballDY);
-}
-function moveBallByStep() {
-  ballX += ballDX;
-  ballY += ballDY;
-}
-
-function bounceBallFromWall() {
-  ballDY = -ballDY;
-}
-
-function bounceBallFromPaddle() {
-  ballDX = -ballDX;
-  randomPaddleBounce();
-}
-
-function moveBallToStart() {
-  ballX = BALL_START_X;
-  ballY = BALL_START_Y;
-}
-function ballIsOutsideOnLeft() {
-  return ballX + BALL_R < 0;
-}
-
-function ballIsOutsideOnRight() {
-  return ballX - BALL_R > CANVAS_WIDTH;
-}
-
-function isBallOnTheSameHeightAsPaddle(paddleY) {
-  return isInBetween(ballY, paddleY, paddleY + PADDLE_HEIGHT);
-}
-
-function shouldBounceFromLeftPaddle() {
-  return (
-    ballDX < 0 &&
-    isInBetween(ballX - BALL_R, PADDLE_P1_X, PADDLE_P1_X + PADDLE_WIDTH) &&
-    isBallOnTheSameHeightAsPaddle(p1PaddleY)
-  );
-}
-
-function shouldBounceFromRightPaddle() {
-  return (
-    ballDX > 0 &&
-    isInBetween(ballX + BALL_R, PADDLE_P2_X, PADDLE_P2_X + PADDLE_WIDTH) &&
-    isBallOnTheSameHeightAsPaddle(p2PaddleY)
-  );
 }
 
 function moveBall() {
-  if (shouldBounceBallFromTopWall() || shouldBounceBallFromBottomWall()) {
-    bounceBallFromWall();
+  if (ball.shouldBounceFromTopWall() || ball.shouldBounceFromBottomWall()) {
+    ball.bounceFromWall();
   }
-  if (shouldBounceFromLeftPaddle() || shouldBounceFromRightPaddle()) {
-    bounceBallFromPaddle();
+  if (ball.shouldBounceFromLeftPaddle() || ball.shouldBounceFromRightPaddle()) {
+    ball.bounceFromPaddle();
   }
-  if (ballIsOutsideOnLeft()) {
+  if (ball.isOutsideOnLeft()) {
     randomBallMov();
-    moveBallToStart();
+    ball.moveToStart();
 
-    p2Points++;
-  } else if (ballIsOutsideOnRight()) {
+    p2.points++;
+  } else if (ball.isOutsideOnRight()) {
     randomBallMov();
-    moveBallToStart();
+    ball.moveToStart();
 
-    p1Points++;
+    p1.points++;
   }
-  moveBallByStep();
+  ball.moveByStep();
 }
 
 function updateState() {
@@ -253,11 +273,9 @@ function updateState() {
 //* Drawing new state to canvas
 function drawState() {
   clearCanvas();
-  drawPoints(p1Points.toString(), BOARD_P1_X);
-  drawPoints(p2Points.toString(), BOARD_P2_X);
-  drawBall(ballX, ballY);
-  drawPaddle(PADDLE_P1_X, p1PaddleY);
-  drawPaddle(PADDLE_P2_X, p2PaddleY);
+  ball.draw();
+  p1.draw();
+  p2.draw();
 }
 function updateAndDrawState() {
   if (!paused) {
